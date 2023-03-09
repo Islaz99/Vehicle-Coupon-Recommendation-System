@@ -1,0 +1,434 @@
+---
+title: "535_Anqi ZHu"
+author: "Anqi Zhu"
+date: "3/29/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(gridExtra)
+library(lemon)
+```
+
+# Csv file read
+
+```{r}
+df = read.csv("vehicle-coupon-recommendation.csv")
+```
+
+# Data Summarize
+
+```{r}
+summary(df)
+
+summarize_numeric = function(dataset) {
+  
+  dataset = select_if(dataset, is.numeric)
+  summary.table = data.frame(Attribute = names(dataset))
+  
+  summary.table = summary.table %>% 
+    mutate('Missing Values' = apply(dataset, 2, function (x) sum(x == "")),
+           'Unique Values' = apply(dataset, 2, function (x) length(unique(x))),
+           'Mean' = colMeans(dataset, na.rm = TRUE),
+           'Min' = apply(dataset, 2, function (x) min(x, na.rm = TRUE)),
+           'Max' = apply(dataset, 2, function (x) max(x, na.rm = TRUE)),
+           'SD' = apply(dataset, 2, function (x) sd(x, na.rm = TRUE))
+    )
+  summary.table
+}
+
+summarize_numeric(df)
+```
+
+```{r}
+summarize_character = function(dataset) {
+  
+  dataset = select_if(dataset, is.character)
+  summary.table = data.frame(Attribute = names(dataset))
+  summary.table = summary.table %>% 
+    mutate('Missing Values' = apply(dataset, 2, function (x) sum(x == "")),
+           'Unique Values' = apply(dataset, 2, function (x) length(unique(x))),
+    )
+  summary.table
+}
+
+summarize_character(df)
+
+```
+
+# Data cleaning
+
+```{r}
+# Missing value
+df = df %>% select(-car)
+df = df %>% filter(Bar != "", CoffeeHouse != "", CarryAway != "", RestaurantLessThan20 != "", Restaurant20To50 != "") 
+
+#  Convert numeric attributes to factors
+df$temperature = as.factor(df$temperature)
+df$has_children = as.factor(df$has_children)
+df$direction_same = as.factor(df$direction_same)
+
+df = df %>% select(-direction_opp)
+
+df$Y = as.factor(df$Y)
+
+# Convert character attributes to factors
+df = df %>% mutate(
+  destination = as.factor(destination), 
+  passanger = as.factor(passanger),
+  weather = as.factor(weather),
+  time = as.factor(time),
+  coupon = as.factor(coupon),
+  expiration = as.factor(expiration),
+  gender = as.factor(gender),
+  age = as.factor(age),
+  maritalStatus = as.factor(maritalStatus),
+  education = as.factor(education),
+  occupation = as.factor(occupation),
+  income = as.factor(income),
+  Bar = as.factor(Bar),
+  CoffeeHouse = as.factor(CoffeeHouse),
+  CarryAway = as.factor(CarryAway),
+  RestaurantLessThan20 = as.factor(RestaurantLessThan20),
+  Restaurant20To50 = as.factor(Restaurant20To50),
+)
+
+summary(df)
+
+df$time = factor(df$time, order = TRUE, levels = c("7AM", "10AM", "2PM","6PM","10PM"))
+df$age = factor(df$age, order = TRUE, levels = c("below21","21", "26", "31","36","41","46","50plus"))
+df$education = factor(df$education, order = TRUE, levels = c("Some High School","High School Graduate", "Some college - no degree", "Associates degree","Bachelors degree","Graduate degree (Masters or Doctorate)"))
+df$income = factor(df$income, order = TRUE, levels = c("Less than $12500","$12500 - $24999","$25000 - $37499","$37500 - $49999","$50000 - $62499","$62500 - $74999", "$75000 - $87499", "$87500 - $99999","$100000 or More"))
+
+df$Bar = factor(df$Bar, order = TRUE, levels = c("never","less1", "1~3", "4~8","gt8"))
+df$CoffeeHouse = factor(df$CoffeeHouse, order = TRUE, levels = c("never","less1", "1~3", "4~8","gt8"))
+df$CarryAway = factor(df$CarryAway, order = TRUE, levels = c("never","less1", "1~3", "4~8","gt8"))
+df$RestaurantLessThan20 = factor(df$RestaurantLessThan20, order = TRUE, levels = c("never","less1", "1~3", "4~8","gt8"))
+df$Restaurant20To50 = factor(df$Restaurant20To50, order = TRUE, levels = c("never","less1", "1~3", "4~8","gt8"))
+
+summary(df)
+
+df <- df %>%
+  mutate('toCoupon_GEQ' = if_else(toCoupon_GEQ5min==1 & toCoupon_GEQ15min==0 & toCoupon_GEQ25min==0,'5-15', if_else(toCoupon_GEQ5min==1 & toCoupon_GEQ15min==1 & toCoupon_GEQ25min==0,'15-25','>25'))) %>%
+  select(-toCoupon_GEQ5min,-toCoupon_GEQ15min,-toCoupon_GEQ25min)
+
+df$toCoupon_GEQ = factor(df$toCoupon_GEQ, order = TRUE, levels = c("5-15", "15-25", ">25"))
+
+summary(df)
+```
+
+# Univariate analysis
+
+```{r}
+# Create bar charts of factors
+p1 = ggplot(df) + geom_bar(aes(x = destination))
+p2 = ggplot(df) + geom_bar(aes(x = passanger))
+p3 = ggplot(df) + geom_bar(aes(x = weather))
+p4 = ggplot(df) + geom_bar(aes(x = temperature))
+p5 = ggplot(df) + geom_bar(aes(x = time)) #QJH
+p6 = ggplot(df) + geom_bar(aes(x = coupon))+ 
+    theme(axis.text.x = element_text(angle = 90))
+p7 = ggplot(df) + geom_bar(aes(x = expiration))
+p8 = ggplot(df) + geom_bar(aes(x = gender))
+p9 = ggplot(df) + geom_bar(aes(x = age))
+p10 = ggplot(df) + geom_bar(aes(x = maritalStatus))+ 
+    theme(axis.text.x = element_text(angle = 90)) #KYY
+p11 = ggplot(df) + geom_bar(aes(x = has_children))
+p12 = ggplot(df) + geom_bar(aes(x = education))+ 
+    theme(axis.text.x = element_text(angle = 90))
+p13 = ggplot(df) + geom_bar(aes(x = occupation)) + 
+    theme(axis.text.x = element_text(angle = 90))
+p14 = ggplot(df) + geom_bar(aes(x = income))+ 
+    theme(axis.text.x = element_text(angle = 90))
+p15 = ggplot(df) + geom_bar(aes(x = Bar))
+p16 = ggplot(df) + geom_bar(aes(x = CoffeeHouse)) # FYF
+p17 = ggplot(df) + geom_bar(aes(x = CarryAway))
+p18 = ggplot(df) + geom_bar(aes(x = RestaurantLessThan20))
+p19 = ggplot(df) + geom_bar(aes(x = Restaurant20To50))
+p20 = ggplot(df) + geom_bar(aes(x = direction_same))
+p21 = ggplot(df) + geom_bar(aes(x = Y))
+p22 = ggplot(df) + geom_bar(aes(x = toCoupon_GEQ)) #ZAQ
+
+grid.arrange(p1,p2,p3,p4,p5,p20,p22, nrow=3, top = "Contextual Factors")
+grid.arrange(p6,p7,p21, nrow=1, top = "Coupon Factors and Outcome")
+grid.arrange(p8,p9,p10,p11, nrow=2, top = "User Factors")
+grid.arrange(p14,p15,p16,p17,p18,p19, nrow=2, top = "User Factors")
+p12 #User
+p13 #User
+```
+
+# Bivariate Analysis
+## Categories vs Categories
+### CarryAway
+
+```{r}
+g1 = ggplot(df) + geom_bar(aes(x=destination, fill = CarryAway), position = "fill") + labs(y = "Percent")
+g2 = ggplot(df) + geom_bar(aes(x=passanger, fill = CarryAway), position = "fill") + labs(y = "Percent")
+g3 = ggplot(df) + geom_bar(aes(x=weather, fill = CarryAway), position = "fill") + labs(y = "Percent")
+g4 = ggplot(df) + geom_bar(aes(x=temperature, fill = CarryAway), position = "fill") + labs(y = "Percent")
+g5 = ggplot(df) + geom_bar(aes(x=time, fill = CarryAway), position = "fill") + labs(y = "Percent")
+g6 = ggplot(df) + geom_bar(aes(x=coupon, fill = CarryAway), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g7 = ggplot(df) + geom_bar(aes(x=expiration, fill = CarryAway), position = "fill") + labs(y = "Percent")
+g8 = ggplot(df) + geom_bar(aes(x=gender, fill = CarryAway), position = "fill") + labs(y = "Percent")
+g9 = ggplot(df) + geom_bar(aes(x=age, fill = CarryAway), position = "fill") + labs(y = "Percent")
+g10 = ggplot(df) + geom_bar(aes(x=maritalStatus, fill = CarryAway), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g11 = ggplot(df) + geom_bar(aes(x=has_children, fill = CarryAway), position = "fill") + labs(y = "Percent")
+g12 = ggplot(df) + geom_bar(aes(x=education, fill = CarryAway), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g13 = ggplot(df) + geom_bar(aes(x=occupation, fill = CarryAway), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g14 = ggplot(df) + geom_bar(aes(x=income, fill = CarryAway), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g15 = ggplot(df) + geom_bar(aes(x=Bar, fill = CarryAway), position = "fill") + labs(y = "Percent")
+g16 = ggplot(df) + geom_bar(aes(x=CoffeeHouse, fill = CarryAway), position = "fill") + labs(y = "Percent")
+g17 = ggplot(df) + geom_bar(aes(x=CarryAway, fill = CarryAway), position = "fill") + labs(y = "Percent")
+g18 = ggplot(df) + geom_bar(aes(x=RestaurantLessThan20, fill = CarryAway), position = "fill") + labs(y = "Percent")
+g19 = ggplot(df) + geom_bar(aes(x=Restaurant20To50, fill = CarryAway), position = "fill") + labs(y = "Percent")
+g20 = ggplot(df) + geom_bar(aes(x=direction_same, fill = CarryAway), position = "fill") + labs(y = "Percent")
+g21 = ggplot(df) + geom_bar(aes(x=Y, fill = CarryAway), position = "fill") + labs(y = "Percent")
+g22 = ggplot(df) + geom_bar(aes(x=toCoupon_GEQ, fill = CarryAway), position = "fill") + labs(y = "Percent")
+
+grid_arrange_shared_legend(g1,g2,g3,g4,g5,g20,g22,  nrow=3,ncol=3, top = "CarryAway by Contextual Factors")
+grid_arrange_shared_legend(g8,g9,g11,g15,g16,g18,g19,  nrow=3,ncol=3, top = "CarryAway by User Factors")
+grid_arrange_shared_legend(g6,g7,  nrow=1,ncol=2, top = "CarryAway by Coupon Factors")
+grid_arrange_shared_legend(g12,g14,g10,  nrow=2,ncol=2, top = "CarryAway by User Factors")
+g13
+```
+
+### RestaurantLessThan20
+
+```{r}
+g1 = ggplot(df) + geom_bar(aes(x=destination, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent")
+g2 = ggplot(df) + geom_bar(aes(x=passanger, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent")
+g3 = ggplot(df) + geom_bar(aes(x=weather, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent")
+g4 = ggplot(df) + geom_bar(aes(x=temperature, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent")
+g5 = ggplot(df) + geom_bar(aes(x=time, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent")
+g6 = ggplot(df) + geom_bar(aes(x=coupon, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g7 = ggplot(df) + geom_bar(aes(x=expiration, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent")
+g8 = ggplot(df) + geom_bar(aes(x=gender, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent")
+g9 = ggplot(df) + geom_bar(aes(x=age, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent")
+g10 = ggplot(df) + geom_bar(aes(x=maritalStatus, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g11 = ggplot(df) + geom_bar(aes(x=has_children, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent")
+g12 = ggplot(df) + geom_bar(aes(x=education, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g13 = ggplot(df) + geom_bar(aes(x=occupation, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g14 = ggplot(df) + geom_bar(aes(x=income, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g15 = ggplot(df) + geom_bar(aes(x=Bar, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent")
+g16 = ggplot(df) + geom_bar(aes(x=CoffeeHouse, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent")
+g17 = ggplot(df) + geom_bar(aes(x=CarryAway, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent")
+g18 = ggplot(df) + geom_bar(aes(x=RestaurantLessThan20, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent")
+g19 = ggplot(df) + geom_bar(aes(x=Restaurant20To50, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent")
+g20 = ggplot(df) + geom_bar(aes(x=direction_same, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent")
+g21 = ggplot(df) + geom_bar(aes(x=Y, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent")
+g22 = ggplot(df) + geom_bar(aes(x=toCoupon_GEQ, fill = RestaurantLessThan20), position = "fill") + labs(y = "Percent")
+
+grid_arrange_shared_legend(g1,g2,g3,g4,g5,g20,g22,  nrow=3,ncol=3, top = "RestaurantLessThan20 by Contextual Factors")
+grid_arrange_shared_legend(g8,g9,g10,g11,g15,g16,g17,g19,  nrow=3,ncol=3, top = "RestaurantLessThan20 by User Factors")
+grid_arrange_shared_legend(g6,g7,  nrow=1,ncol=2, top = "RestaurantLessThan20 by Coupon Factors")
+grid_arrange_shared_legend(g12,g14,  nrow=1,ncol=2, top = "RestaurantLessThan20 by Education and Income")
+g13
+
+```
+
+### Restaurant20To50
+
+```{r}
+g1 = ggplot(df) + geom_bar(aes(x=destination, fill = Restaurant20To50), position = "fill") + labs(y = "Percent")
+g2 = ggplot(df) + geom_bar(aes(x=passanger, fill = Restaurant20To50), position = "fill") + labs(y = "Percent")
+g3 = ggplot(df) + geom_bar(aes(x=weather, fill = Restaurant20To50), position = "fill") + labs(y = "Percent")
+g4 = ggplot(df) + geom_bar(aes(x=temperature, fill = Restaurant20To50), position = "fill") + labs(y = "Percent")
+g5 = ggplot(df) + geom_bar(aes(x=time, fill = Restaurant20To50), position = "fill") + labs(y = "Percent")
+g6 = ggplot(df) + geom_bar(aes(x=coupon, fill = Restaurant20To50), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g7 = ggplot(df) + geom_bar(aes(x=expiration, fill = Restaurant20To50), position = "fill") + labs(y = "Percent")
+g8 = ggplot(df) + geom_bar(aes(x=gender, fill = Restaurant20To50), position = "fill") + labs(y = "Percent")
+g9 = ggplot(df) + geom_bar(aes(x=age, fill = Restaurant20To50), position = "fill") + labs(y = "Percent")
+g10 = ggplot(df) + geom_bar(aes(x=maritalStatus, fill = Restaurant20To50), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g11 = ggplot(df) + geom_bar(aes(x=has_children, fill = Restaurant20To50), position = "fill") + labs(y = "Percent")
+g12 = ggplot(df) + geom_bar(aes(x=education, fill = Restaurant20To50), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g13 = ggplot(df) + geom_bar(aes(x=occupation, fill = Restaurant20To50), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g14 = ggplot(df) + geom_bar(aes(x=income, fill = Restaurant20To50), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g15 = ggplot(df) + geom_bar(aes(x=Bar, fill = Restaurant20To50), position = "fill") + labs(y = "Percent")
+g16 = ggplot(df) + geom_bar(aes(x=CoffeeHouse, fill = Restaurant20To50), position = "fill") + labs(y = "Percent")
+g17 = ggplot(df) + geom_bar(aes(x=CarryAway, fill = Restaurant20To50), position = "fill") + labs(y = "Percent")
+g18 = ggplot(df) + geom_bar(aes(x=RestaurantLessThan20, fill = Restaurant20To50), position = "fill") + labs(y = "Percent")
+g19 = ggplot(df) + geom_bar(aes(x=Restaurant20To50, fill = Restaurant20To50), position = "fill") + labs(y = "Percent")
+g20 = ggplot(df) + geom_bar(aes(x=direction_same, fill = Restaurant20To50), position = "fill") + labs(y = "Percent")
+g21 = ggplot(df) + geom_bar(aes(x=Y, fill = Restaurant20To50), position = "fill") + labs(y = "Percent")
+g22 = ggplot(df) + geom_bar(aes(x=toCoupon_GEQ, fill = Restaurant20To50), position = "fill") + labs(y = "Percent")
+
+grid_arrange_shared_legend(g1,g2,g3,g4,g5,g20,g22,  nrow=3,ncol=3, top = "Restaurant20To50 by Contextual Factors")
+grid_arrange_shared_legend(g8,g9,g10,g11,g15,g16,g17,g18,  nrow=3,ncol=3, top = "Restaurant20To50 by User Factors")
+grid_arrange_shared_legend(g6,g7,  nrow=1,ncol=2, top = "Restaurant20To50 by Coupon Factors")
+grid_arrange_shared_legend(g12,g14,  nrow=1,ncol=2, top = "Restaurant20To50 by Education and Income")
+g13
+
+```
+
+### direction_same
+
+```{r}
+g1 = ggplot(df) + geom_bar(aes(x=destination, fill = direction_same), position = "fill") + labs(y = "Percent")
+g2 = ggplot(df) + geom_bar(aes(x=passanger, fill = direction_same), position = "fill") + labs(y = "Percent")
+g3 = ggplot(df) + geom_bar(aes(x=weather, fill = direction_same), position = "fill") + labs(y = "Percent")
+g4 = ggplot(df) + geom_bar(aes(x=temperature, fill = direction_same), position = "fill") + labs(y = "Percent")
+g5 = ggplot(df) + geom_bar(aes(x=time, fill = direction_same), position = "fill") + labs(y = "Percent")
+g6 = ggplot(df) + geom_bar(aes(x=coupon, fill = direction_same), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g7 = ggplot(df) + geom_bar(aes(x=expiration, fill = direction_same), position = "fill") + labs(y = "Percent")
+g8 = ggplot(df) + geom_bar(aes(x=gender, fill = direction_same), position = "fill") + labs(y = "Percent")
+g9 = ggplot(df) + geom_bar(aes(x=age, fill = direction_same), position = "fill") + labs(y = "Percent")
+g10 = ggplot(df) + geom_bar(aes(x=maritalStatus, fill = direction_same), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g11 = ggplot(df) + geom_bar(aes(x=has_children, fill = direction_same), position = "fill") + labs(y = "Percent")
+g12 = ggplot(df) + geom_bar(aes(x=education, fill = direction_same), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g13 = ggplot(df) + geom_bar(aes(x=occupation, fill = direction_same), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g14 = ggplot(df) + geom_bar(aes(x=income, fill = direction_same), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g15 = ggplot(df) + geom_bar(aes(x=Bar, fill = direction_same), position = "fill") + labs(y = "Percent")
+g16 = ggplot(df) + geom_bar(aes(x=CoffeeHouse, fill = direction_same), position = "fill") + labs(y = "Percent")
+g17 = ggplot(df) + geom_bar(aes(x=CarryAway, fill = direction_same), position = "fill") + labs(y = "Percent")
+g18 = ggplot(df) + geom_bar(aes(x=RestaurantLessThan20, fill = direction_same), position = "fill") + labs(y = "Percent")
+g19 = ggplot(df) + geom_bar(aes(x=Restaurant20To50, fill = direction_same), position = "fill") + labs(y = "Percent")
+g20 = ggplot(df) + geom_bar(aes(x=direction_same, fill = direction_same), position = "fill") + labs(y = "Percent")
+g21 = ggplot(df) + geom_bar(aes(x=Y, fill = direction_same), position = "fill") + labs(y = "Percent")
+g22 = ggplot(df) + geom_bar(aes(x=toCoupon_GEQ, fill = direction_same), position = "fill") + labs(y = "Percent")
+
+grid_arrange_shared_legend(g1,g2,g3,g4,g5,g22,  nrow=2,ncol=3, top = "direction_same by Contextual Factors")
+grid_arrange_shared_legend(g8,g9,g10,g11,g15,g16,g17,g18,g19,  nrow=3,ncol=3, top = "direction_same by User Factors")
+grid_arrange_shared_legend(g6,g7, nrow=1,ncol=2, top = "direction_same by Coupon Factors")
+grid_arrange_shared_legend(g12,g14,  nrow=1,ncol=2, top = "direction_same by Education and Income")
+g13
+
+```
+
+### Y
+
+```{r}
+g1 = ggplot(df) + geom_bar(aes(x=destination, fill = Y), position = "fill") + labs(y = "Percent")
+g2 = ggplot(df) + geom_bar(aes(x=passanger, fill = Y), position = "fill") + labs(y = "Percent")
+g3 = ggplot(df) + geom_bar(aes(x=weather, fill = Y), position = "fill") + labs(y = "Percent")
+g4 = ggplot(df) + geom_bar(aes(x=temperature, fill = Y), position = "fill") + labs(y = "Percent")
+g5 = ggplot(df) + geom_bar(aes(x=time, fill = Y), position = "fill") + labs(y = "Percent")
+g6 = ggplot(df) + geom_bar(aes(x=coupon, fill = Y), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g7 = ggplot(df) + geom_bar(aes(x=expiration, fill = Y), position = "fill") + labs(y = "Percent")
+g8 = ggplot(df) + geom_bar(aes(x=gender, fill = Y), position = "fill") + labs(y = "Percent")
+g9 = ggplot(df) + geom_bar(aes(x=age, fill = Y), position = "fill") + labs(y = "Percent")
+g10 = ggplot(df) + geom_bar(aes(x=maritalStatus, fill = Y), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g11 = ggplot(df) + geom_bar(aes(x=has_children, fill = Y), position = "fill") + labs(y = "Percent")
+g12 = ggplot(df) + geom_bar(aes(x=education, fill = Y), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g13 = ggplot(df) + geom_bar(aes(x=occupation, fill = Y), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g14 = ggplot(df) + geom_bar(aes(x=income, fill = Y), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g15 = ggplot(df) + geom_bar(aes(x=Bar, fill = Y), position = "fill") + labs(y = "Percent")
+g16 = ggplot(df) + geom_bar(aes(x=CoffeeHouse, fill = Y), position = "fill") + labs(y = "Percent")
+g17 = ggplot(df) + geom_bar(aes(x=CarryAway, fill = Y), position = "fill") + labs(y = "Percent")
+g18 = ggplot(df) + geom_bar(aes(x=RestaurantLessThan20, fill = Y), position = "fill") + labs(y = "Percent")
+g19 = ggplot(df) + geom_bar(aes(x=Restaurant20To50, fill = Y), position = "fill") + labs(y = "Percent")
+g20 = ggplot(df) + geom_bar(aes(x=direction_same, fill = Y), position = "fill") + labs(y = "Percent")
+g21 = ggplot(df) + geom_bar(aes(x=Y, fill = Y), position = "fill") + labs(y = "Percent")
+g22 = ggplot(df) + geom_bar(aes(x=toCoupon_GEQ, fill = Y), position = "fill") + labs(y = "Percent")
+
+grid.arrange(g1,g2,g3,g4,g5,g20,g22,  nrow=3, top = "Y by Contextual Factors")
+grid.arrange(g8,g9,g10,g11,g15,g16,g17,g18,g19,  nrow=3, top = "Y by User Factors")
+grid.arrange(g6,g7,  nrow=1, top = "Y by Coupon Factors and Outcome")
+grid.arrange(g12,g14,  nrow=2, top = "Y by Education and Income")
+g13
+
+grid_arrange_shared_legend(g1,g2,g3,g4,g5,g20,g22,g6,g7, ncol=3,nrow=3, position = "right") # Y by Contextual & Coupon Factors
+grid_arrange_shared_legend(g8,g9,g10,g11,g15,g16,g17,g18,g19, ncol=3,nrow=3, position = "right") # Y by User Factors
+grid_arrange_shared_legend(g12,g14, ncol=1,nrow=2, position = "top") # Y by Education and Income
+g13 # Y by Occupation
+```
+
+### toCoupon_GEQ
+```{r}
+g1 = ggplot(df) + geom_bar(aes(x=destination, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent")
+g2 = ggplot(df) + geom_bar(aes(x=passanger, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent")
+g3 = ggplot(df) + geom_bar(aes(x=weather, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent")
+g4 = ggplot(df) + geom_bar(aes(x=temperature, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent")
+g5 = ggplot(df) + geom_bar(aes(x=time, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent")
+g6 = ggplot(df) + geom_bar(aes(x=coupon, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g7 = ggplot(df) + geom_bar(aes(x=expiration, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent")
+g8 = ggplot(df) + geom_bar(aes(x=gender, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent")
+g9 = ggplot(df) + geom_bar(aes(x=age, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent")
+g10 = ggplot(df) + geom_bar(aes(x=maritalStatus, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g11 = ggplot(df) + geom_bar(aes(x=has_children, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent")
+g12 = ggplot(df) + geom_bar(aes(x=education, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g13 = ggplot(df) + geom_bar(aes(x=occupation, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g14 = ggplot(df) + geom_bar(aes(x=income, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent") + 
+  theme(axis.text.x = element_text(angle = 30))
+g15 = ggplot(df) + geom_bar(aes(x=Bar, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent")
+g16 = ggplot(df) + geom_bar(aes(x=CoffeeHouse, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent")
+g17 = ggplot(df) + geom_bar(aes(x=CarryAway, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent")
+g18 = ggplot(df) + geom_bar(aes(x=RestaurantLessThan20, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent")
+g19 = ggplot(df) + geom_bar(aes(x=Restaurant20To50, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent")
+g20 = ggplot(df) + geom_bar(aes(x=direction_same, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent")
+g21 = ggplot(df) + geom_bar(aes(x=Y, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent")
+g22 = ggplot(df) + geom_bar(aes(x=toCoupon_GEQ, fill = toCoupon_GEQ), position = "fill") + labs(y = "Percent")
+
+grid_arrange_shared_legend(g1,g2,g3,g4,g5,g20,  nrow=3,ncol=2, top = "toCoupon_GEQ by Contextual Factors")
+grid_arrange_shared_legend(g8,g9,g10,g11,g15,g16,g17,g18,g19,  nrow=3,ncol=3, top = "toCoupon_GEQ by User Factors")
+grid_arrange_shared_legend(g6,g7,  nrow=1,ncol=2, top = "toCoupon_GEQ by Coupon Factors")
+grid_arrange_shared_legend(g12,g14,  nrow=1,ncol=2, top = "toCoupon_GEQ by Education and Income")
+g13
+
+```
+
+# Statistic Analytics
+
+```{r}
+chisq.test(table(df %>% select(Y, destination)))
+chisq.test(table(df %>% select(Y, passanger)))
+chisq.test(table(df %>% select(Y, weather)))
+chisq.test(table(df %>% select(Y, time)))
+chisq.test(table(df %>% select(Y, toCoupon_GEQ)))
+chisq.test(table(df %>% select(Y, maritalStatus)))
+chisq.test(table(df %>% select(Y, CoffeeHouse)))
+chisq.test(table(df %>% select(Y, Restaurant20To50)))
+chisq.test(table(df %>% select(Y, coupon)))
+chisq.test(table(df %>% select(Y, expiration)))
+
+chisq.test(table(df %>% select(Y, gender)))
+chisq.test(table(df %>% select(Y, temperature)))
+chisq.test(table(df %>% select(Y, age)))
+chisq.test(table(df %>% select(Y, has_children)))
+chisq.test(table(df %>% select(Y, Bar)))
+chisq.test(table(df %>% select(Y, CarryAway)))
+chisq.test(table(df %>% select(Y,RestaurantLessThan20)))
+chisq.test(table(df %>% select(Y, education)))
+chisq.test(table(df %>% select(Y, income)))
+chisq.test(table(df %>% select(Y, occupation)))
+chisq.test(table(df %>% select(Y, direction_same))) #p-value = 0.1197
+
+
+
+```
+
+```{r}
+logit_fit = glm(Y~., data = df, family = "binomial")
+summary(logit_fit)
+```
+
